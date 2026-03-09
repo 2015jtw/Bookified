@@ -5,7 +5,13 @@ import Image from 'next/image';
 import React from 'react';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
-import { Show, UserButton, SignInButton, SignUpButton } from '@clerk/nextjs';
+import {
+  Show,
+  UserButton,
+  SignInButton,
+  SignUpButton,
+  useUser,
+} from '@clerk/nextjs';
 
 const navItems = [
   {
@@ -17,6 +23,9 @@ const navItems = [
 
 const Navbar = () => {
   const pathname = usePathname();
+  const { user } = useUser();
+
+  console.log(user);
   return (
     <header className="w-full fixed z-50">
       <div className="wrapper navbar-height py-4 flex justify-between items-center bg-(--bg-primary)">
@@ -49,13 +58,24 @@ const Navbar = () => {
               </Link>
             );
           })}
-          <Show when="signed-out">
-            <SignInButton />
-            <SignUpButton />
-          </Show>
-          <Show when="signed-in">
-            <UserButton />
-          </Show>
+          <div className="flex gap-7.5 items-center">
+            <Show when="signed-out">
+              <SignInButton />
+              <SignUpButton />
+            </Show>
+            <Show when="signed-in">
+              <UserButton />
+              {user?.firstName && (
+                <Link
+                  href="/subscriptions"
+                  className="nav-user-name
+                "
+                >
+                  {user?.firstName}
+                </Link>
+              )}
+            </Show>
+          </div>
         </nav>
       </div>
     </header>
