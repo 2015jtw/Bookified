@@ -15,7 +15,12 @@ import { Upload, ImageIcon, X, Loader2 } from 'lucide-react';
 import { voiceCategories, voiceOptions, DEFAULT_VOICE } from '@/lib/constant';
 import { UploadSchema } from '@/lib/zod';
 import { BookUploadFormValues } from '@/lib/types';
-
+import { useAuth } from '@clerk/nextjs';
+import { toast } from 'sonner';
+import { checkBookExists, createBook } from '@/lib/actions/book.actions';
+import { useRouter } from 'next/navigation';
+import { parsePDFFile } from '@/lib/utils';
+import { upload } from '@vercel/blob/client';
 // ─── Loading Overlay ────────────────────────────────────────────────────────
 
 function LoadingOverlay() {
@@ -160,6 +165,8 @@ function DropzoneField({
 
 const UploadForm = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const { userId } = useAuth();
+  const router = useRouter();
 
   const form = useForm<BookUploadFormValues>({
     resolver: zodResolver(UploadSchema),
@@ -172,11 +179,75 @@ const UploadForm = () => {
     },
   });
 
-  const onSubmit = async (values: BookUploadFormValues) => {
+  const onSubmit = async (data: BookUploadFormValues) => {
+    if (!userId) {
+      return toast.error('Please sign in to upload a book');
+    }
+
     setIsSubmitting(true);
+
     try {
-      console.log('Submitting:', values);
-      // TODO: wire up to server action / API route
+      const existsCheck = await checkBookExists(data.title);
+
+      if (existsCheck.exists && existsCheck.book) {
+        toast.info('Book with this title already exists');
+        form.reset();
+        router.push(`/books/${existsCheck.book.slug}`);
+        return;
+      }
+
+      const fileTitle = data.title.replace(/\s+/g, '-').toLowerCase();
+      const pdfFile = data.pdfFile;
+      const parsedPDF = await parsePDFFile(pdfFile);
+      if (parsedPDF.content.length === 0) {
+        toast.error('No text found in the PDF file');
+        return;
+      }
+      const uploadedPdfBlob = await upload(fileTitle, pdfFile, {
+        access: 'public',
+        handleUploadUrl: '/api/upload',
+        contentType: 'application/pdf',
+      });
+
+      let coverUrl: string;
+
+      if (data.coverImage) {
+        const coverFile = data.coverImage;
+        const uploadedCoverBlob = await upload(
+          `${fileTitle}_cover.png`,
+          coverFile,
+          {
+            access: 'public',
+            handleUploadUrl: '/api/upload',
+            contentType: coverFile.type,
+          },
+        );
+        coverUrl = uploadedCoverBlob.url;
+      } else {
+        const response = await fetch(parsedPDF.cover);
+        const blob = await response.blob();
+
+        const uploadedCoverBlob = await upload(`${fileTitle}_cover.png`, blob, {
+          access: 'public',
+          handleUploadUrl: '/api/upload',
+          contentType: blob.type,
+        });
+        coverUrl = uploadedCoverBlob.url;
+      }
+
+      const book = await createBook({
+        clerkId: userId,
+        title: data.title,
+        author: data.author,
+        persona: data.voiceId,
+        fileURL: uploadedPdfBlob.url,
+        fileBlobKey: uploadedPdfBlob.pathname,
+        fileSize: pdfFile.size,
+        coverURL: coverUrl,
+      });
+    } catch (error) {
+      console.log('Error submitting form', error);
+      return toast.error('Failed to upload book');
     } finally {
       setIsSubmitting(false);
     }

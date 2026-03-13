@@ -3,6 +3,7 @@ import { IBM_Plex_Serif, Mona_Sans } from 'next/font/google';
 import { ClerkProvider } from '@clerk/nextjs';
 import './globals.css';
 import Navbar from '@/components/ui/Navbar';
+import { Toaster } from '@/components/ui/sonner';
 
 const ibmPlexSerif = IBM_Plex_Serif({
   weight: ['400', '500', '600', '700'],
@@ -36,6 +37,7 @@ export default function RootLayout({
         <ClerkProvider>
           <Navbar />
           {children}
+          <Toaster />
         </ClerkProvider>
       </body>
     </html>
