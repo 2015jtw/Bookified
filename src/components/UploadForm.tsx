@@ -17,7 +17,11 @@ import { UploadSchema } from '@/lib/zod';
 import { BookUploadFormValues } from '@/lib/types';
 import { useAuth } from '@clerk/nextjs';
 import { toast } from 'sonner';
-import { checkBookExists, createBook } from '@/lib/actions/book.actions';
+import {
+  checkBookExists,
+  createBook,
+  saveBookSegments,
+} from '@/lib/actions/book.actions';
 import { useRouter } from 'next/navigation';
 import { parsePDFFile } from '@/lib/utils';
 import { upload } from '@vercel/blob/client';
@@ -245,6 +249,30 @@ const UploadForm = () => {
         fileSize: pdfFile.size,
         coverURL: coverUrl,
       });
+      if (!book.success) {
+        throw new Error('Failed to create book');
+      }
+
+      if (book.alreadyExists) {
+        toast.info('Book with this title already exists');
+        form.reset();
+        router.push(`/books/${existsCheck.book.slug}`);
+        return;
+      }
+
+      const segments = await saveBookSegments(
+        book.data._id,
+        userId,
+        parsedPDF.content,
+      );
+
+      if (!segments?.success) {
+        toast.error('Failed to save book segments');
+        throw new Error('Failed to save book segments');
+      }
+
+      form.reset();
+      router.push('/');
     } catch (error) {
       console.log('Error submitting form', error);
       return toast.error('Failed to upload book');
