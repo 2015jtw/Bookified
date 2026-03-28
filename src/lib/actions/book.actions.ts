@@ -1,10 +1,28 @@
-'use server';
+"use server";
 
-import Book from '@/database/models/book.model';
-import { CreateBook, TextSegment } from '../types';
-import { connectToDatabase } from '@/database/mongoose';
-import { generateSlug, serializeData } from '../utils';
-import BookSegment from '@/database/models/book-segment.model';
+import Book from "@/database/models/book.model";
+import { CreateBook, TextSegment } from "../types";
+import { connectToDatabase } from "@/database/mongoose";
+import { generateSlug, serializeData } from "../utils";
+import BookSegment from "@/database/models/book-segment.model";
+
+export const getAllBooks = async () => {
+  try {
+    await connectToDatabase();
+
+    const books = await Book.find().sort({ createdAt: -1 }).lean();
+    return {
+      success: true,
+      data: serializeData(books),
+    };
+  } catch (error) {
+    console.log("Error getting all books", error);
+    return {
+      success: false,
+      error,
+    };
+  }
+};
 
 export const checkBookExists = async (title: string) => {
   try {
@@ -25,8 +43,8 @@ export const checkBookExists = async (title: string) => {
       exists: false,
     };
   } catch (error) {
-    console.log('Error checking book exists', error);
-    throw new Error('Failed to check book exists');
+    console.log("Error checking book exists", error);
+    throw new Error("Failed to check book exists");
     return {
       exists: false,
       error,
@@ -59,7 +77,7 @@ export const createBook = async (data: CreateBook) => {
     };
   } catch (error) {
     console.error(error);
-    throw new Error('Failed to create book');
+    throw new Error("Failed to create book");
     return {
       success: false,
       error: error,
@@ -88,7 +106,7 @@ export const saveBookSegments = async (
 
     await BookSegment.insertMany(segmentsToInsert);
     await Book.findByIdAndUpdate(bookId, { totalSegments: segments.length });
-    console.log('Book segments saved');
+    console.log("Book segments saved");
     return {
       success: true,
       data: {
@@ -96,9 +114,9 @@ export const saveBookSegments = async (
       },
     };
   } catch (error) {
-    console.log('Error saving book segments', error);
+    console.log("Error saving book segments", error);
     await BookSegment.deleteMany({ bookId });
     await Book.findByIdAndDelete(bookId);
-    console.log('Book and segments deleted');
+    console.log("Book and segments deleted");
   }
 };
