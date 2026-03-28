@@ -13,9 +13,7 @@ const BookSegmentSchema = new Schema<IBookSegment>({
   segmentIndex: { type: Number, required: true, index: true },
   pageNumber: { type: Number, required: false, index: true },
   wordCount: { type: Number, required: true },
-  createdAt: { type: Date, required: true },
-  updatedAt: { type: Date, required: true },
-});
+}, { timestamps: true });
 
 BookSegmentSchema.index({ bookId: 1, segmentIndex: 1 }, { unique: true });
 BookSegmentSchema.index({ bookId: 1, pageNumber: 1 });
